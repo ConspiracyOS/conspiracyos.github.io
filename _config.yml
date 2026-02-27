@@ -1,0 +1,11 @@
+title: ConspiracyOS
+description: "Agents that run on Linux, not faith."
+theme: minima
+url: "https://conspiracyos.github.io"
+baseurl: ""
+github_username: ConspiracyOS
+
+header_pages:
+  - how-it-works.md
+  - docs.md
+  - contributing.md
