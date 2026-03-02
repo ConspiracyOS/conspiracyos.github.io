@@ -15,31 +15,34 @@ permalink: /docs/
 
 ## Install and Bootstrap
 
+ConspiracyOS runs as a container with systemd as PID 1. You need Docker (or Podman)
+and Go 1.22+ to build from source.
+
 ```bash
-# Clone the repository
-git clone https://github.com/ConspiracyOS/agent-runner.git
-cd agent-runner
+# Clone the inner runtime and container build repos
+git clone https://github.com/ConspiracyOS/conctl.git
+git clone https://github.com/ConspiracyOS/container.git
 
-# Build the binary (requires Go 1.22+)
-make linux           # amd64; use `make linux-arm64` for arm64
-sudo cp con /usr/local/bin/con
+# Build the conctl binary (runs inside the container)
+cd conctl && go build -o conctl ./cmd/conctl/ && cd ..
 
-# Set your API key (mode 600, readable only by root/systemd)
-sudo mkdir -p /etc/conos
-printf 'CONOS_API_KEY=your-key-here\n' | sudo tee /etc/conos/env >/dev/null
-sudo chmod 600 /etc/conos/env
+# Set your API key
+cd container
+cp .env.example srv/dev/container.env
+# Edit srv/dev/container.env: set CONOS_API_KEY=your-key-here
 
-# Copy the default config
-sudo cp configs/default/conos.toml /etc/conos/conos.toml
-
-# Bootstrap the system (creates users, dirs, systemd units — run once as root)
-sudo con bootstrap
+# Build the container image and deploy
+make image CONCTL_BIN=../conctl/conctl
+make deploy
 ```
+
+The container boots with systemd as PID 1, provisions all agent users and inboxes,
+and starts listening for tasks.
 
 Verify the system is up:
 
 ```bash
-con status
+make status
 ```
 
 ## Your First Task
@@ -47,34 +50,35 @@ con status
 Send a task to the concierge:
 
 ```bash
-con task "What agents are running in this conspiracy?"
+make task MSG="What agents are running in this conspiracy?"
 ```
 
 The concierge picks it up from the outer inbox, determines the right agent, and routes it.
 Watch the audit log to see activity:
 
 ```bash
-con logs
+make logs
 ```
 
 Check for responses in agent outboxes:
 
 ```bash
-con responses
+make responses
 ```
 
 ## Useful Commands
 
 ```bash
-con status          # show each agent's health and last activity
-con logs            # tail the audit log (last 20 lines)
-con responses       # show latest response from each agent's outbox
-con healthcheck     # evaluate all system contracts
+make status         # show each agent's health and last activity
+make logs           # tail the audit log (last 20 lines)
+make responses      # show latest response from each agent's outbox
+make task MSG="..." # send a task to the concierge
+make deploy         # rebuild the image and restart the container
 ```
 
 ## Adding a Custom Agent
 
-Add an entry to `/etc/conos/conos.toml`:
+Add an entry to `configs/default/conos.toml` in the `container` repo:
 
 ```toml
 [[agents]]
@@ -86,5 +90,11 @@ You are my-agent. Describe what this agent does here.
 """
 ```
 
-Then run `sudo con bootstrap` to provision it. Bootstrap creates the Linux user,
-home directory, inbox, workspace, and systemd path unit for the new agent.
+Then rebuild and redeploy:
+
+```bash
+make deploy
+```
+
+Bootstrap runs automatically on container start and provisions any new agents
+defined in the config.
