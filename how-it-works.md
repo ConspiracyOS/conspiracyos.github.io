@@ -24,7 +24,7 @@ Agents are organized into three tiers:
 | Worker | (ephemeral) | Runs specific tasks, spawned on demand |
 
 To send a task to another agent, write a plain text file to their inbox:
-`/srv/con/agents/<name>/inbox/<NNN>-<id>.task`
+`/srv/conos/agents/<name>/inbox/<NNN>-<id>.task`
 
 ### Linux-Native
 
@@ -38,20 +38,20 @@ ConspiracyOS uses the OS as its coordination layer:
 
 ### Inspectability and Auditability
 
-Every significant action is logged to `/srv/con/logs/audit/`.
+Every significant action is logged to `/srv/conos/logs/audit/`.
 Every capability is enforced by the OS, not by instructions.
 A compromised agent cannot exceed its Linux permissions.
 
 ```bash
 # See what agents exist
-ls /srv/con/agents/
+ls /srv/conos/agents/
 
 # See what's in an agent's inbox
-ls /srv/con/agents/concierge/inbox/
+ls /srv/conos/agents/concierge/inbox/
 
 # See the audit log
-tail -f /srv/con/logs/audit/$(date +%Y-%m-%d).log
+tail -f /srv/conos/logs/audit/$(date +%Y-%m-%d).log
 
 # See active contracts
-ls /srv/con/contracts/
+ls /srv/conos/contracts/
 ```
