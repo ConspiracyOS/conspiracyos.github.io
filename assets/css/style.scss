@@ -1,0 +1,55 @@
+---
+---
+
+@import "minima";
+
+// Responsive code blocks — scroll horizontally instead of overflowing the page
+pre,
+pre.highlight,
+.highlight pre {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+// Inline code — allow wrapping on narrow screens
+code {
+  word-break: break-word;
+}
+
+// Pre-formatted code should not wrap (let the scroll handle it)
+pre code {
+  word-break: normal;
+}
+
+// Responsive tables
+table {
+  display: block;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+}
+
+// Ensure the page wrapper never exceeds viewport width
+.page-content,
+.wrapper {
+  box-sizing: border-box;
+  max-width: 100%;
+}
+
+// Tighten padding on small screens
+@media (max-width: 600px) {
+  .page-content {
+    padding: 16px;
+  }
+
+  .post-content,
+  .page-content {
+    font-size: 15px;
+  }
+
+  // Navigation items wrap cleanly
+  .site-nav .page-link {
+    display: block;
+    margin: 4px 0;
+  }
+}
