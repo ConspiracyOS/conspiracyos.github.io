@@ -19,7 +19,7 @@ Agents are organized into three tiers:
 
 | Tier | Who | Authority |
 |------|-----|-----------|
-| Officer | ceo, cto, cso | Sets policy, approves elevated actions |
+| Officer | strategist | Sets policy, approves elevated actions |
 | Operator | concierge, sysadmin | Executes, routes, operates |
 | Worker | (ephemeral) | Runs specific tasks, spawned on demand |
 

@@ -30,9 +30,9 @@ We value technical precision and honest disagreement.
 
 ## Architecture Decisions
 
-Significant decisions are recorded as ADRs in the repository.
-Read them before proposing large changes — they explain the why,
-not just the what.
+Significant design decisions are documented internally. If you're proposing
+a large change, open an issue first — we can share the relevant context
+and save you from building in the wrong direction.
 
 ## Pull Request Process
 
