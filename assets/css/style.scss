@@ -3,26 +3,23 @@
 
 @import "minima";
 
-// Responsive code blocks
+// Code blocks: wrap long lines on narrow screens instead of clipping
 pre,
 pre.highlight,
 .highlight pre {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  // Always-visible thin scrollbar so users know they can scroll
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: normal;
   scrollbar-width: thin;
   scrollbar-color: rgba(0, 0, 0, 0.25) rgba(0, 0, 0, 0.05);
 }
 
 pre::-webkit-scrollbar {
-  height: 5px;
+  height: 4px;
 }
 pre::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.25);
   border-radius: 2px;
-}
-pre::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.05);
 }
 
 // Inline code — allow wrapping on narrow screens
@@ -30,7 +27,7 @@ code {
   word-break: break-word;
 }
 
-// Pre-formatted code should not wrap (let the scroll handle it)
+// Pre-formatted code should not break within words
 pre code {
   word-break: normal;
 }
