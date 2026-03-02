@@ -3,46 +3,26 @@
 
 @import "minima";
 
-// Wrap code blocks so we can add a scroll-fade indicator
-.highlight {
-  position: relative;
-  overflow: hidden;
-  border-radius: 3px;
-}
-
-// Right-fade shadow — indicates horizontal scroll without needing a visible scrollbar
-.highlight::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: 2rem;
-  background: linear-gradient(to right, transparent, rgba(238, 238, 255, 0.95));
-  pointer-events: none;
-  // Hidden when not needed — JS toggles this, but CSS fallback shows it always on mobile
-}
-
-// Responsive code blocks — scroll horizontally instead of overflowing the page
+// Responsive code blocks
 pre,
 pre.highlight,
 .highlight pre {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
-  // Visible scrollbar on webkit (mobile Chrome/Safari)
+  // Always-visible thin scrollbar so users know they can scroll
   scrollbar-width: thin;
-  scrollbar-color: rgba(0,0,0,0.2) transparent;
+  scrollbar-color: rgba(0, 0, 0, 0.25) rgba(0, 0, 0, 0.05);
 }
 
 pre::-webkit-scrollbar {
-  height: 4px;
+  height: 5px;
 }
 pre::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.25);
+  background: rgba(0, 0, 0, 0.3);
   border-radius: 2px;
 }
 pre::-webkit-scrollbar-track {
-  background: transparent;
+  background: rgba(0, 0, 0, 0.05);
 }
 
 // Inline code — allow wrapping on narrow screens
@@ -82,7 +62,6 @@ table {
     font-size: 15px;
   }
 
-  // Navigation items wrap cleanly
   .site-nav .page-link {
     display: block;
     margin: 4px 0;
