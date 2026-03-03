@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ConspiracyOS — A conspiracy of agents.</title>
+  <meta name="description" content="Linux-native AI agent orchestration. Agents run as Linux users, coordinated by the OS. No cloud. No faith. Just chmod, systemd, and files.">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+</head>
+<body>
+  <nav>
+    <div class="wrap">
+      <a href="/" class="site-title">conspiracyos</a>
+      <ul class="nav-links">
+        <li><a href="docs.html">Documentation</a></li>
+        <li><a href="https://github.com/ConspiracyOS">GitHub →</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <main>
+    <div class="wrap">
+
+      <h1 class="hero">A conspiracy of agents.</h1>
+      <p class="tagline">They run on Linux, not faith.</p>
+
+      <ul class="section-nav">
+        <li><a href="#philosophy">Philosophy</a></li>
+        <li><a href="#how-it-works">How It Works</a></li>
+        <li><a href="#start">Start a Conspiracy</a></li>
+      </ul>
+
+      <p>Most agent frameworks control AI with application logic — permission configs,
+      trust levels, guard clauses in code. ConspiracyOS uses Linux. Each agent is a
+      Linux user. Its permissions are <code>chmod</code>. Its network is <code>nftables</code>.
+      Its process boundaries are <code>systemd</code>. A fully compromised agent still
+      can't exceed what the OS allows.</p>
+
+      <p>That's not a design goal. That's <code>stat(2)</code>.</p>
+
+      <!-- ── Philosophy ─────────────────────────────────────────── -->
+      <h2 id="philosophy" class="section">Philosophy</h2>
+
+      <div class="props">
+        <p><strong>Enforced, not promised.</strong> Other systems tell the model not to
+        do things. ConspiracyOS uses <code>sudoers</code>, <code>nftables</code>, and
+        <code>chmod</code>. If the capability doesn't exist in Linux, it doesn't exist.
+        A permission config that the agent itself can edit isn't a permission.</p>
+
+        <p><strong>Fine-grained, not binary.</strong> Most agent sandboxes are on/off.
+        ConspiracyOS gives you the same access control model you use for system processes:
+        per-uid file permissions, filesystem ACLs, sudoers allowlists, per-uid nftables
+        rules. Officers, operators, and workers each get exactly what they need — enforced
+        by the kernel, not by instructions.</p>
+
+        <p><strong>Everything on disk.</strong> Inboxes are directories. Tasks are files.
+        State survives reboots. Debug with <code>ls</code>, <code>tail</code>,
+        <code>stat</code> — no proprietary tooling, no black boxes.</p>
+
+        <p><strong>Self-healing.</strong> Detective contracts run on systemd timers. If the
+        system drifts from its intended state, the sysadmin agent is notified. The
+        conspiracy watches itself.</p>
+
+        <p><strong>Runs anywhere.</strong> Any Linux machine with systemd. No cloud account.
+        No container orchestrator. No vendor lock-in.</p>
+      </div>
+
+      <!-- ── How It Works ───────────────────────────────────────── -->
+      <h2 id="how-it-works" class="section">How It Works</h2>
+
+      <p>A <strong>conspiracy</strong> is a fleet of agents coordinated using Linux OS
+      primitives. Every agent is a Linux user. They communicate by writing files to each
+      other's inboxes. All state is on disk.</p>
+
+      <h3>Agents, Inboxes, Tiers</h3>
+
+      <p>Agents are organized into three tiers. Tier determines Linux group membership
+      and systemd hardening — officers get the most access, workers the least.</p>
+
+      <table>
+        <thead>
+          <tr><th>Tier</th><th>Linux group</th><th>Who</th><th>Authority</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>officer</code></td><td><code>officers</code></td><td>ceo, cto, cso</td><td>Sets policy, approves elevated actions</td></tr>
+          <tr><td><code>operator</code></td><td><code>operators</code></td><td>concierge, sysadmin</td><td>Routes tasks, operates the system</td></tr>
+          <tr><td><code>worker</code></td><td><code>workers</code></td><td>(task-specific)</td><td>Bounded execution, spawned on demand</td></tr>
+        </tbody>
+      </table>
+
+      <p>To send a task to another agent, write a plain text file to their inbox:
+      <code>/srv/conos/agents/&lt;name&gt;/inbox/&lt;NNN&gt;-&lt;id&gt;.task</code></p>
+
+      <h3>Linux as Coordination Layer</h3>
+
+      <ul>
+        <li><strong>Filesystem</strong> — inboxes, workspaces, artifacts, audit logs</li>
+        <li><strong>systemd</strong> — path watchers trigger agents when inboxes change; timers run scheduled agents</li>
+        <li><strong>ACLs</strong> — enforce who can write to whose inbox</li>
+        <li><strong>nftables</strong> — per-uid rules enforce what each agent can reach on the network</li>
+        <li><strong>sudoers</strong> — allowlist what each agent can execute as root</li>
+      </ul>
+
+      <h3>Inspectability</h3>
+
+      <p>Every significant action is logged to <code>/srv/conos/logs/audit/</code>. Every
+      capability is enforced by the OS, not by instructions. You can see exactly what's
+      happening with standard tools:</p>
+
+<pre><code class="language-bash"># See what agents exist
+ls /srv/conos/agents/
+
+# See what's in an agent's inbox
+ls /srv/conos/agents/concierge/inbox/
+
+# Follow the audit log
+tail -f /srv/conos/logs/audit/$(date +%Y-%m-%d).log
+
+# See active contracts
+ls /srv/conos/contracts/</code></pre>
+
+      <!-- ── Start ───────────────────────────────────────────────── -->
+      <h2 id="start" class="section">Start a Conspiracy</h2>
+
+      <p>Build the image, write your API key, start:</p>
+
+<pre><code class="language-bash">git clone https://github.com/ConspiracyOS/agent-runner.git
+cd agent-runner
+make image   # builds conctl binary + container image
+
+echo "CONOS_API_KEY=sk-or-your-key-here" > srv/dev/container.env
+conos start  # boots instance; bootstrap runs automatically on first start</code></pre>
+
+      <p>Bootstrap creates the Linux users, directories, and systemd units. Drop a task
+      and watch it move through the system:</p>
+
+<pre><code class="language-bash">conos agent "What agents are available and what can they do?"
+conos status</code></pre>
+
+      <div class="cta">
+        <a href="docs.html">Full documentation</a>
+        <a href="https://github.com/ConspiracyOS">GitHub</a>
+      </div>
+
+    </div>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <span>ConspiracyOS</span>
+      <a href="https://github.com/ConspiracyOS">GitHub</a>
+    </div>
+  </footer>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>hljs.highlightAll();</script>
+</body>
+</html>
