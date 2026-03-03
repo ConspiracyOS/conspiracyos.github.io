@@ -241,18 +241,18 @@ footer a:hover { color: #111; }
 
 /* Wide nav on docs page — aligns with docs-wrap */
 .docs-page nav .wrap {
-  max-width: 906px;
+  max-width: 1152px;
 }
 
 .docs-wrap {
-  max-width: 906px;
+  max-width: 1152px;
   margin: 0 auto;
   padding: 0 24px;
 }
 
 .docs-layout {
   display: grid;
-  grid-template-columns: 190px 1fr;
+  grid-template-columns: 190px minmax(0, 612px) 190px;
   gap: 0 56px;
   align-items: start;
 }
