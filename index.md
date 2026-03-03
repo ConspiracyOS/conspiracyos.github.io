@@ -3,7 +3,7 @@ layout: home
 title: ConspiracyOS
 ---
 
-# ConspiracyOS — Agents that run on Linux, not faith.
+# ConspiracyOS
 
 Linux-native AI agent orchestration. No cloud required.
 No magic — just files, processes, and Unix.
