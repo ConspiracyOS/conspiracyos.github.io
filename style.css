@@ -1,0 +1,334 @@
+/* ConspiracyOS — minimal + stark */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html {
+  font-size: 17px;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: #fff;
+  color: #111;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  line-height: 1.65;
+}
+
+/* Layout */
+.wrap {
+  max-width: 660px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* Nav */
+nav {
+  border-bottom: 1px solid #e5e5e5;
+  padding: 18px 0;
+}
+
+nav .wrap {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+nav .site-title {
+  font-family: "SF Mono", "Fira Code", "Cascadia Code", "Menlo", monospace;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #111;
+  text-decoration: none;
+  letter-spacing: -0.01em;
+}
+
+nav .site-title:hover { color: #2a6f4a; }
+
+nav .nav-links {
+  display: flex;
+  gap: 24px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+nav .nav-links a {
+  font-size: 0.88rem;
+  color: #555;
+  text-decoration: none;
+}
+
+nav .nav-links a:hover {
+  color: #111;
+  text-decoration: underline;
+}
+
+@media (max-width: 580px) {
+  nav .wrap { flex-wrap: wrap; gap: 8px; }
+  nav .nav-links { gap: 16px; }
+  nav .nav-links a { font-size: 0.82rem; }
+}
+
+/* Main content */
+main {
+  padding: 56px 0 80px;
+}
+
+/* Typography */
+h1 {
+  font-size: 1.9rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 0 0 8px;
+  letter-spacing: -0.03em;
+}
+
+h1.hero {
+  font-size: 2.8rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+  margin: 0 0 16px;
+}
+
+h2 {
+  font-size: 1.15rem;
+  font-weight: 600;
+  margin: 48px 0 12px;
+  letter-spacing: -0.01em;
+}
+
+h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 32px 0 8px;
+}
+
+p { margin: 0 0 20px; }
+
+p + h2, ul + h2, pre + h2 { margin-top: 48px; }
+
+a {
+  color: #2a6f4a;
+  text-decoration: none;
+}
+
+a:hover { text-decoration: underline; }
+
+/* Tagline */
+.tagline {
+  font-size: 1.05rem;
+  color: #555;
+  margin: 0 0 32px;
+}
+
+/* Section jump nav */
+.section-nav {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin: 0 0 48px;
+  padding: 0;
+  list-style: none;
+  font-size: 0.85rem;
+}
+
+.section-nav a {
+  color: #888;
+}
+
+.section-nav a:hover { color: #2a6f4a; }
+
+/* Section anchors — offset for sticky nav */
+.section {
+  padding-top: 16px;
+}
+
+/* Value props */
+.props p { margin-bottom: 16px; }
+.props strong { color: #111; }
+
+/* CTA links */
+.cta {
+  margin-top: 48px;
+  display: flex;
+  gap: 32px;
+}
+
+.cta a {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #2a6f4a;
+}
+
+.cta a::after { content: " →"; }
+
+/* Code */
+code {
+  font-family: "SF Mono", "Fira Code", "Cascadia Code", "Menlo", monospace;
+  font-size: 0.85em;
+  background: #f5f5f5;
+  padding: 2px 5px;
+  border-radius: 3px;
+}
+
+pre {
+  overflow-x: auto;
+  max-width: 100%;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  margin: 0 0 24px;
+  border-radius: 6px;
+}
+
+pre code.hljs {
+  font-size: 0.83rem;
+  line-height: 1.55;
+  border-radius: 6px;
+}
+
+/* Tables */
+table {
+  width: 100%;
+  max-width: 100%;
+  display: block;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  margin-bottom: 24px;
+}
+
+th {
+  text-align: left;
+  font-weight: 600;
+  border-bottom: 2px solid #e5e5e5;
+  padding: 6px 12px 6px 0;
+}
+
+td {
+  border-bottom: 1px solid #f0f0f0;
+  padding: 8px 12px 8px 0;
+  vertical-align: top;
+}
+
+/* Lists */
+ul, ol {
+  padding-left: 20px;
+  margin: 0 0 20px;
+}
+
+li { margin-bottom: 6px; }
+
+/* Footer */
+footer {
+  border-top: 1px solid #e5e5e5;
+  padding: 24px 0;
+  font-size: 0.82rem;
+  color: #888;
+}
+
+footer .wrap {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+footer a { color: #888; }
+footer a:hover { color: #111; }
+
+/* ── Docs layout ─────────────────────────────────────────────────── */
+
+/* Wide nav on docs page — aligns with docs-wrap */
+.docs-page nav .wrap {
+  max-width: 906px;
+}
+
+.docs-wrap {
+  max-width: 906px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.docs-layout {
+  display: grid;
+  grid-template-columns: 190px 1fr;
+  gap: 0 56px;
+  align-items: start;
+}
+
+/* Sidebar */
+.sidebar {
+  position: sticky;
+  top: 32px;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  padding-bottom: 48px;
+}
+
+.sidebar-group {
+  margin-bottom: 4px;
+}
+
+.sidebar-group-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #aaa;
+  margin: 20px 0 5px;
+  display: block;
+}
+
+.sidebar ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.sidebar li { margin-bottom: 1px; }
+
+.sidebar a {
+  color: #555;
+  text-decoration: none;
+  display: block;
+  padding: 3px 0;
+}
+
+.sidebar a:hover { color: #111; text-decoration: none; }
+
+.sidebar a.active {
+  color: #2a6f4a;
+  font-weight: 500;
+}
+
+/* Docs content area */
+.docs-content {
+  min-width: 0;
+}
+
+.docs-content h2 {
+  margin-top: 56px;
+  padding-top: 8px;
+  border-top: 1px solid #f0f0f0;
+}
+
+.docs-content h2:first-child {
+  margin-top: 0;
+  border-top: none;
+}
+
+.docs-content h3 {
+  margin-top: 36px;
+}
+
+@media (max-width: 700px) {
+  .docs-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    position: static;
+    display: none;
+  }
+}
