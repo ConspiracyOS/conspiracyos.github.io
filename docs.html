@@ -44,11 +44,11 @@
             </ul>
           </div>
           <div class="sidebar-group">
-            <span class="sidebar-group-label">Reference</span>
+            <span class="sidebar-group-label">Contracts</span>
             <ul>
-              <li><a href="#config">Configuration</a></li>
-              <li><a href="#cli">CLI Commands</a></li>
-              <li><a href="#inspect">Inspecting</a></li>
+              <li><a href="#contracts">Overview</a></li>
+              <li><a href="#contract-schema">Contract Schema</a></li>
+              <li><a href="#contract-escalation">Escalation</a></li>
             </ul>
           </div>
           <div class="sidebar-group">
@@ -61,11 +61,11 @@
             </ul>
           </div>
           <div class="sidebar-group">
-            <span class="sidebar-group-label">Contracts</span>
+            <span class="sidebar-group-label">Reference</span>
             <ul>
-              <li><a href="#contracts">Overview</a></li>
-              <li><a href="#contract-schema">Contract Schema</a></li>
-              <li><a href="#contract-escalation">Escalation</a></li>
+              <li><a href="#config">Configuration</a></li>
+              <li><a href="#cli">CLI Commands</a></li>
+              <li><a href="#inspect">Inspecting</a></li>
             </ul>
           </div>
         </aside>
@@ -217,6 +217,161 @@ instructions = "..."</code></pre>
           the agent to run a command, the corresponding sudoers rule must allow it.
           The pair is the contract.</p>
 
+          <!-- Contracts -->
+          <h2 id="contracts">Contracts</h2>
+
+          <p>The <a href="https://github.com/ConspiracyOS/contract"><code>contracts</code> binary</a>
+          is a standalone contract enforcement tool that works with any git project —
+          no ConspiracyOS required. Define machine-readable invariants in YAML,
+          run them on git hooks or a schedule, and optionally dispatch failures
+          to any shell command.</p>
+
+          <p>Inside ConspiracyOS, the <code>conctl healthcheck</code> command uses the
+          same contract engine to evaluate detective contracts on a systemd timer
+          and escalate failures to sysadmin.</p>
+
+          <p>Install the standalone binary:</p>
+
+<pre><code class="language-bash">go install github.com/ConspiracyOS/contracts/cmd/contracts@latest
+
+cd your-project
+contracts init    # creates .agent/contracts/ + installs git hooks
+contracts audit   # run all contracts</code></pre>
+
+          <h2 id="contract-schema">Contract Schema</h2>
+
+          <p>Contracts live in <code>.agent/contracts/*.yaml</code>. Each file defines
+          one contract with one or more checks:</p>
+
+<pre><code class="language-yaml">id: C-SEC-001
+description: No private key material in committed files
+type: atomic
+trigger: commit
+scope: global
+checks:
+  - name: no private key headers
+    no_regex_in_file:
+      pattern: "-----BEGIN (RSA |EC )?PRIVATE KEY-----"
+    on_fail: escalate</code></pre>
+
+          <p>Check modules: <code>command</code>, <code>script</code>, <code>regex_in_file</code>,
+          <code>no_regex_in_file</code>, <code>path_exists</code>, <code>path_not_exists</code>,
+          <code>yaml_key</code>, <code>json_key</code>, <code>toml_key</code>,
+          <code>env_var</code>, <code>no_env_var</code>, <code>command_available</code>.</p>
+
+          <p><code>on_fail</code> values: <code>fail</code> (default), <code>warn</code>,
+          <code>require_exemption</code>, <code>escalate</code>, <code>alert</code>,
+          <code>halt_agents</code>.</p>
+
+          <p>Built-in contracts for common stacks (Go, TypeScript) are activated by
+          declaring <code>stack</code> in <code>.agent/config.yaml</code>.</p>
+
+          <p>See the <a href="https://github.com/ConspiracyOS/contract">contract repo</a>
+          for the full schema reference.</p>
+
+          <h2 id="contract-escalation">Contract Escalation</h2>
+
+          <p>When a check with <code>on_fail: escalate</code> or <code>on_fail: alert</code>
+          fails, the binary shells out to a user-configured command with a JSON payload
+          on stdin. Configure it in <code>.agent/config.yaml</code>:</p>
+
+<pre><code class="language-yaml">escalation:
+  command: "curl -sf -X POST $WEBHOOK_URL -H 'Content-Type: application/json' -d @-"</code></pre>
+
+          <p>The command receives a JSON payload on stdin:</p>
+
+<pre><code class="language-json">{
+  "severity": "escalate",
+  "summary": "1 escalate failure(s): C-SEC-001",
+  "failures": [{ "contract_id": "C-SEC-001", "check_name": "no private key headers",
+                  "status": "fail", "on_fail": "escalate", ... }]
+}</code></pre>
+
+          <p>Env vars <code>CONTRACTS_SEVERITY</code> and <code>CONTRACTS_SUMMARY</code>
+          are also set. The command exit code does not affect the audit exit code —
+          escalation is best-effort. <code>escalate</code> severity beats <code>alert</code>
+          when both are present.</p>
+
+          <!-- Runners -->
+          <h2 id="picoclaw">Runner: PicoClaw (default)</h2>
+
+          <p>PicoClaw is a built-in Claude client compiled directly into the <code>conctl</code>
+          binary. No installation needed. It talks to OpenRouter by default, giving you access
+          to Claude, GPT-4, Gemini, and hundreds of other models with a single API key.</p>
+
+          <p>Configure it in <code>/etc/conos/conos.toml</code>:</p>
+
+<pre><code class="language-toml">[base]
+runner = "picoclaw"
+provider = "openrouter"
+api_key_env = "CONOS_API_KEY"
+
+# Different models per tier
+[base.officer]
+model = "anthropic/claude-opus-4-6"
+
+[base.operator]
+model = "anthropic/claude-sonnet-4.6"</code></pre>
+
+          <p>The <code>model</code> value is the OpenRouter model ID.
+          Browse available models at <a href="https://openrouter.ai/models">openrouter.ai/models</a>.</p>
+
+          <p>You can override the provider or model per agent:</p>
+
+<pre><code class="language-toml">[[agents]]
+name = "analyst"
+tier = "worker"
+provider = "openrouter"
+model = "google/gemini-flash-1.5"   # cheap and fast for low-stakes tasks
+api_key_env = "CONOS_API_KEY"</code></pre>
+
+          <h2 id="exec">Runner: Exec (external CLI)</h2>
+
+          <p>The exec runner pipes tasks into any external CLI binary via stdin and reads
+          the response from stdout. This is how you plug in Claude Code, Codex, or any
+          tool that accepts prompts from the command line.</p>
+
+          <p>The binary must be installed on the host — it is not baked into the image.
+          Set <code>runner</code> to the binary name or path:</p>
+
+<pre><code class="language-toml">[[agents]]
+name = "engineer"
+tier = "worker"
+runner = "claude-code"       # must be on PATH</code></pre>
+
+          <h2 id="claude-code">Runner: Claude Code</h2>
+
+          <p>Claude Code can act as an agent runner — it has tool use, file access, and
+          long context. Install it inside the container and point an agent at it:</p>
+
+<pre><code class="language-bash"># Install into the container (run once)
+container exec conspiracyos npm install -g @anthropic-ai/claude-code</code></pre>
+
+<pre><code class="language-toml">[[agents]]
+name = "engineer"
+tier = "worker"
+runner = "claude-code"
+instructions = """
+You are a software engineer. Implement tasks precisely.
+Work inside your workspace directory.
+"""</code></pre>
+
+          <p>The agent's workspace at <code>/srv/conos/agents/engineer/workspace/</code>
+          becomes the working directory for the Claude Code process.</p>
+
+          <h2 id="codex">Runner: OpenAI Codex</h2>
+
+<pre><code class="language-bash"># Install codex CLI
+npm install -g @openai/codex
+
+# Add API key
+echo "OPENAI_API_KEY=sk-your-key" >> /etc/conos/env</code></pre>
+
+<pre><code class="language-toml">[[agents]]
+name = "coder"
+tier = "worker"
+runner = "codex"</code></pre>
+
           <!-- Reference -->
           <h2 id="config">Configuration Reference</h2>
 
@@ -333,161 +488,6 @@ ls /srv/conos/contracts/
 # Check agent filesystem layout
 ls /srv/conos/agents/concierge/
 # inbox/   outbox/   workspace/   sessions/</code></pre>
-
-          <!-- Runners -->
-          <h2 id="picoclaw">Runner: PicoClaw (default)</h2>
-
-          <p>PicoClaw is a built-in Claude client compiled directly into the <code>conctl</code>
-          binary. No installation needed. It talks to OpenRouter by default, giving you access
-          to Claude, GPT-4, Gemini, and hundreds of other models with a single API key.</p>
-
-          <p>Configure it in <code>/etc/conos/conos.toml</code>:</p>
-
-<pre><code class="language-toml">[base]
-runner = "picoclaw"
-provider = "openrouter"
-api_key_env = "CONOS_API_KEY"
-
-# Different models per tier
-[base.officer]
-model = "anthropic/claude-opus-4-6"
-
-[base.operator]
-model = "anthropic/claude-sonnet-4.6"</code></pre>
-
-          <p>The <code>model</code> value is the OpenRouter model ID.
-          Browse available models at <a href="https://openrouter.ai/models">openrouter.ai/models</a>.</p>
-
-          <p>You can override the provider or model per agent:</p>
-
-<pre><code class="language-toml">[[agents]]
-name = "analyst"
-tier = "worker"
-provider = "openrouter"
-model = "google/gemini-flash-1.5"   # cheap and fast for low-stakes tasks
-api_key_env = "CONOS_API_KEY"</code></pre>
-
-          <h2 id="exec">Runner: Exec (external CLI)</h2>
-
-          <p>The exec runner pipes tasks into any external CLI binary via stdin and reads
-          the response from stdout. This is how you plug in Claude Code, Codex, or any
-          tool that accepts prompts from the command line.</p>
-
-          <p>The binary must be installed on the host — it is not baked into the image.
-          Set <code>runner</code> to the binary name or path:</p>
-
-<pre><code class="language-toml">[[agents]]
-name = "engineer"
-tier = "worker"
-runner = "claude-code"       # must be on PATH</code></pre>
-
-          <h2 id="claude-code">Runner: Claude Code</h2>
-
-          <p>Claude Code can act as an agent runner — it has tool use, file access, and
-          long context. Install it inside the container and point an agent at it:</p>
-
-<pre><code class="language-bash"># Install into the container (run once)
-container exec conspiracyos npm install -g @anthropic-ai/claude-code</code></pre>
-
-<pre><code class="language-toml">[[agents]]
-name = "engineer"
-tier = "worker"
-runner = "claude-code"
-instructions = """
-You are a software engineer. Implement tasks precisely.
-Work inside your workspace directory.
-"""</code></pre>
-
-          <p>The agent's workspace at <code>/srv/conos/agents/engineer/workspace/</code>
-          becomes the working directory for the Claude Code process.</p>
-
-          <h2 id="codex">Runner: OpenAI Codex</h2>
-
-<pre><code class="language-bash"># Install codex CLI
-npm install -g @openai/codex
-
-# Add API key
-echo "OPENAI_API_KEY=sk-your-key" >> /etc/conos/env</code></pre>
-
-<pre><code class="language-toml">[[agents]]
-name = "coder"
-tier = "worker"
-runner = "codex"</code></pre>
-
-          <!-- Contracts -->
-          <h2 id="contracts">Contracts</h2>
-
-          <p>The <a href="https://github.com/ConspiracyOS/contract"><code>contracts</code> binary</a>
-          is a standalone contract enforcement tool that works with any git project —
-          no ConspiracyOS required. Define machine-readable invariants in YAML,
-          run them on git hooks or a schedule, and optionally dispatch failures
-          to any shell command.</p>
-
-          <p>Inside ConspiracyOS, the <code>conctl healthcheck</code> command uses the
-          same contract engine to evaluate detective contracts on a systemd timer
-          and escalate failures to sysadmin.</p>
-
-          <p>Install the standalone binary:</p>
-
-<pre><code class="language-bash">go install github.com/ConspiracyOS/contracts/cmd/contracts@latest
-
-cd your-project
-contracts init    # creates .agent/contracts/ + installs git hooks
-contracts audit   # run all contracts</code></pre>
-
-          <h2 id="contract-schema">Contract Schema</h2>
-
-          <p>Contracts live in <code>.agent/contracts/*.yaml</code>. Each file defines
-          one contract with one or more checks:</p>
-
-<pre><code class="language-yaml">id: C-SEC-001
-description: No private key material in committed files
-type: atomic
-trigger: commit
-scope: global
-checks:
-  - name: no private key headers
-    no_regex_in_file:
-      pattern: "-----BEGIN (RSA |EC )?PRIVATE KEY-----"
-    on_fail: escalate</code></pre>
-
-          <p>Check modules: <code>command</code>, <code>script</code>, <code>regex_in_file</code>,
-          <code>no_regex_in_file</code>, <code>path_exists</code>, <code>path_not_exists</code>,
-          <code>yaml_key</code>, <code>json_key</code>, <code>toml_key</code>,
-          <code>env_var</code>, <code>no_env_var</code>, <code>command_available</code>.</p>
-
-          <p><code>on_fail</code> values: <code>fail</code> (default), <code>warn</code>,
-          <code>require_exemption</code>, <code>escalate</code>, <code>alert</code>,
-          <code>halt_agents</code>.</p>
-
-          <p>Built-in contracts for common stacks (Go, TypeScript) are activated by
-          declaring <code>stack</code> in <code>.agent/config.yaml</code>.</p>
-
-          <p>See the <a href="https://github.com/ConspiracyOS/contract">contract repo</a>
-          for the full schema reference.</p>
-
-          <h2 id="contract-escalation">Contract Escalation</h2>
-
-          <p>When a check with <code>on_fail: escalate</code> or <code>on_fail: alert</code>
-          fails, the binary shells out to a user-configured command with a JSON payload
-          on stdin. Configure it in <code>.agent/config.yaml</code>:</p>
-
-<pre><code class="language-yaml">escalation:
-  command: "curl -sf -X POST $WEBHOOK_URL -H 'Content-Type: application/json' -d @-"</code></pre>
-
-          <p>The command receives a JSON payload on stdin:</p>
-
-<pre><code class="language-json">{
-  "severity": "escalate",
-  "summary": "1 escalate failure(s): C-SEC-001",
-  "failures": [{ "contract_id": "C-SEC-001", "check_name": "no private key headers",
-                  "status": "fail", "on_fail": "escalate", ... }]
-}</code></pre>
-
-          <p>Env vars <code>CONTRACTS_SEVERITY</code> and <code>CONTRACTS_SUMMARY</code>
-          are also set. The command exit code does not affect the audit exit code —
-          escalation is best-effort. <code>escalate</code> severity beats <code>alert</code>
-          when both are present.</p>
 
         </div><!-- .docs-content -->
       </div><!-- .docs-layout -->
