@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>How It Works — ConspiracyOS</title>
+  <meta name="description" content="How ConspiracyOS works: agents as Linux users, filesystem inboxes, systemd path watchers, ACLs, nftables, sudoers, and contracts.">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+</head>
+<body>
+  <nav>
+    <div class="wrap">
+      <a href="/" class="site-title">conspiracyos</a>
+      <ul class="nav-links">
+        <li><a href="docs.html">Documentation</a></li>
+        <li><a href="https://github.com/ConspiracyOS">GitHub →</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <main>
+    <div class="wrap">
+      <h1>How It Works</h1>
+
+      <p>A conspiracy is a fleet of agents running inside a single container. Each agent is a Linux user — a real <code>uid</code> with a home directory, file permissions, and process isolation. Agents communicate by writing plain text files to each other's inboxes. There is no message bus, no RPC layer, no internal API. One agent tasks another by dropping a <code>.task</code> file in their inbox directory. That is the protocol.</p>
+
+      <h2>Tiers</h2>
+
+      <p>Not all agents are equal. A conspiracy organizes agents into three tiers, each with different authority:</p>
+
+      <table>
+        <thead>
+          <tr><th>Tier</th><th>Role</th><th>Authority</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Officer</td><td>strategist</td><td>Sets policy, approves elevated actions</td></tr>
+          <tr><td>Operator</td><td>concierge, sysadmin</td><td>Routes tasks, executes operations</td></tr>
+          <tr><td>Worker</td><td>(ephemeral)</td><td>Runs a specific job, spawned on demand</td></tr>
+        </tbody>
+      </table>
+
+      <p>Tier determines what an agent can do. Officers can task anyone. Operators can task workers but not officers. Workers cannot task anyone — they receive work, do it, and write a response. These boundaries are not conventions. They are ACL rules on inbox directories, enforced by the kernel.</p>
+
+      <h2>The Coordination Layer</h2>
+
+      <p>The entire coordination mechanism is five Linux primitives, each handling one concern:</p>
+
+      <p><strong>systemd path units</strong> watch each agent's inbox. When a new file appears, systemd starts the agent's service. No polling, no daemon — the init system does what it was built to do.</p>
+
+      <p><strong>POSIX ACLs</strong> (access control lists) determine which users can write to which directories. An operator can write to a worker's inbox because the ACL grants it. A worker cannot write to an officer's inbox because the ACL does not. <code>getfacl /srv/conos/agents/concierge/inbox/</code> shows exactly who has access.</p>
+
+      <p><strong>nftables</strong> controls outbound network access per user. A worker agent that should only call one API endpoint gets a firewall rule scoped to its <code>uid</code>. Everything else is dropped. If the agent is compromised, it still cannot phone home — the kernel drops the packets before they leave the machine.</p>
+
+      <p><strong>sudoers</strong> defines which commands an agent can run as root. A sysadmin agent can reload systemd units and manage users. A worker agent has no sudoers entry at all. The allowlist is explicit and auditable.</p>
+
+      <p><strong>File permissions</strong> (<code>chmod 700</code>) on workspaces mean each agent's files are invisible to every other agent. No application-level access control. The filesystem enforces it.</p>
+
+      <h2>Contracts</h2>
+
+      <p>A system that assumes breach needs continuous verification. Contracts are YAML-defined checks that run on systemd timers, asserting that the system matches its intended state:</p>
+
+<pre><code class="language-yaml">id: CON-SEC-001
+description: Skill files must be owned by root
+type: detective
+checks:
+  - name: skills_root_owned
+    script:
+      inline: |
+        found=$(find /etc/conos/roles -name '*.md' ! -user root)
+        [ -z "$found" ]
+    on_fail: escalate
+    severity: critical</code></pre>
+
+      <p>This contract runs every five minutes. If an agent somehow modifies a skill file it should not own, the check fails and the system escalates. Contracts do not prevent drift — they detect it. Prevention requires trust in the thing being protected. Detection only requires <code>cron</code>.</p>
+
+      <p>The <a href="https://github.com/ConspiracyOS/contracts"><code>contracts</code></a> CLI is standalone. It runs on any Linux system, no dependency on the rest of ConspiracyOS.</p>
+
+      <h2>Inspecting a Running System</h2>
+
+      <p>There is no dashboard and no proprietary observability stack. The system is the filesystem:</p>
+
+<pre><code class="language-bash"># List agents
+ls /srv/conos/agents/
+
+# Check an agent's inbox
+ls /srv/conos/agents/concierge/inbox/
+
+# See who can write to an inbox
+getfacl /srv/conos/agents/sysadmin/inbox/
+
+# Read the audit log
+tail -f /srv/conos/logs/audit/$(date +%Y-%m-%d).log
+
+# Check contract results
+ls /srv/conos/contracts/results/</code></pre>
+
+      <p>Every question about system state has a one-line answer using tools that ship with every Linux distribution.</p>
+    </div>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <span>ConspiracyOS</span>
+      <a href="https://github.com/ConspiracyOS">GitHub</a>
+    </div>
+  </footer>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>hljs.highlightAll();</script>
+</body>
+</html>

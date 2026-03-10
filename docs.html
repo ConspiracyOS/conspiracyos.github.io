@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Documentation — ConspiracyOS</title>
+  <meta name="description" content="Getting started with ConspiracyOS: install, configure, and deploy a conspiracy of agents.">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+</head>
+<body class="docs-page">
+  <nav>
+    <div class="wrap">
+      <a href="/" class="site-title">conspiracyos</a>
+      <ul class="nav-links">
+        <li><a href="docs.html">Documentation</a></li>
+        <li><a href="https://github.com/ConspiracyOS">GitHub →</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <main>
+    <div class="docs-wrap">
+      <div class="docs-layout">
+
+        <!-- ── Sidebar ─────────────────────────────────────────── -->
+        <aside class="sidebar">
+          <div class="sidebar-group">
+            <span class="sidebar-group-label">Getting Started</span>
+            <ul>
+              <li><a href="#prerequisites">Prerequisites</a></li>
+              <li><a href="#quick-start">Quick Start</a></li>
+              <li><a href="#build-from-source">Build from Source</a></li>
+              <li><a href="#first-task">First Task</a></li>
+            </ul>
+          </div>
+          <div class="sidebar-group">
+            <span class="sidebar-group-label">Configuration</span>
+            <ul>
+              <li><a href="#config">Config File</a></li>
+              <li><a href="#adding-agents">Adding Agents</a></li>
+              <li><a href="#agent-fields">Agent Fields</a></li>
+              <li><a href="#tiers">Tiers</a></li>
+            </ul>
+          </div>
+          <div class="sidebar-group">
+            <span class="sidebar-group-label">Reference</span>
+            <ul>
+              <li><a href="#cli-conos">conos CLI</a></li>
+              <li><a href="#cli-conctl">conctl CLI</a></li>
+              <li><a href="#cli-make">make targets</a></li>
+              <li><a href="#inspect">Inspecting</a></li>
+            </ul>
+          </div>
+        </aside>
+
+        <!-- ── Content ────────────────────────────────────────── -->
+        <div class="docs-content">
+
+          <h1>Documentation</h1>
+          <p class="tagline">From zero to running conspiracy in about five minutes.</p>
+
+          <!-- Getting Started -->
+          <h2 id="prerequisites">Prerequisites</h2>
+
+          <ul>
+            <li>Docker or Podman</li>
+            <li>Go 1.22+ (both paths require building a Go binary)</li>
+            <li>An API key (Anthropic or OpenRouter)</li>
+          </ul>
+
+          <p>The container runs Ubuntu 24.04 or Debian 12 with systemd as PID 1.
+          Your host just needs a container runtime.</p>
+
+          <h2 id="quick-start">Quick Start</h2>
+
+          <p>Build the <code>conos</code> CLI, then let it handle the rest.</p>
+
+<pre><code class="language-bash">git clone https://github.com/ConspiracyOS/conos.git
+cd conos && go build -o conos ./cmd/conos/</code></pre>
+
+          <p>Install and boot a conspiracy:</p>
+
+<pre><code class="language-bash">CONOS_API_KEY=sk-your-key-here ./conos install</code></pre>
+
+          <p>This pulls the image, writes the env file, and starts the container.
+          One command, one running system.</p>
+
+<pre><code class="language-bash">./conos status</code></pre>
+
+          <h2 id="build-from-source">Build from Source</h2>
+
+          <p>For contributors, or if you want to modify the inner runtime.</p>
+
+<pre><code class="language-bash">git clone https://github.com/ConspiracyOS/conctl.git
+git clone https://github.com/ConspiracyOS/container.git
+
+# Build the inner binary
+cd conctl && go build -o conctl ./cmd/conctl/ && cd ..
+
+# Configure
+cd container
+cp .env.example srv/dev/container.env
+# Edit srv/dev/container.env — set CONOS_API_KEY=your-key-here
+
+# Build and deploy
+make image CONCTL_BIN=../conctl/conctl
+make deploy</code></pre>
+
+          <p>The container boots, provisions agent users and inboxes, and starts
+          watching for tasks. Verify with <code>make status</code>.</p>
+
+          <h2 id="first-task">First Task</h2>
+
+          <p>Talk to the concierge. It routes your request to the right agent.</p>
+
+          <p>With <code>conos</code>:</p>
+
+<pre><code class="language-bash">conos agent "What agents are running in this conspiracy?"
+conos agent logs -f     # watch the audit log</code></pre>
+
+          <p>With <code>make</code> (from the <code>container</code> repo):</p>
+
+<pre><code class="language-bash">make task MSG="What agents are running in this conspiracy?"
+make logs               # tail the audit log
+make responses          # check agent outboxes</code></pre>
+
+          <p>The concierge reads the task from the outer inbox, picks the right
+          agent, and routes it. Responses land in agent outboxes.</p>
+
+          <p>To task a specific agent directly:</p>
+
+<pre><code class="language-bash">conos agent task sysadmin "Run the contracts"</code></pre>
+
+          <!-- Configuration -->
+          <h2 id="config">Configuration</h2>
+
+          <p>Everything lives in <code>conos.toml</code>. The default config ships with
+          three agents: concierge, sysadmin, and strategist.</p>
+
+<pre><code class="language-toml">[system]
+name = "my-conspiracy"
+
+[dashboard]
+enabled = true
+port = 8080
+
+[contracts]
+brief_output = "/srv/conos/context/system-state.md"
+
+[base]
+runner = "picoclaw"
+provider = "anthropic"
+api_key_env = "CONOS_API_KEY"
+
+[base.officer]
+model = "claude-sonnet-4-6"
+
+[base.operator]
+model = "claude-sonnet-4-6"</code></pre>
+
+          <p>The <code>[base]</code> section sets defaults. <code>[base.officer]</code> and
+          <code>[base.operator]</code> override per tier. Individual agents inherit from
+          their tier unless they specify their own <code>model</code> or <code>provider</code>.</p>
+
+          <h2 id="adding-agents">Adding an Agent</h2>
+
+          <p>Append to <code>conos.toml</code>:</p>
+
+<pre><code class="language-toml">[[agents]]
+name = "researcher"
+tier = "worker"
+mode = "on-demand"
+instructions = """
+You are the Researcher. You gather information from
+approved sources and summarize findings.
+"""</code></pre>
+
+          <p>Redeploy to provision the new agent:</p>
+
+<pre><code class="language-bash">conos config apply    # if using conos
+make deploy           # if building from source</code></pre>
+
+          <p>Bootstrap runs on container start. It creates the Linux user, home
+          directory, inbox, systemd units, and ACLs. The agent exists because
+          Linux says it does.</p>
+
+          <h2 id="agent-fields">Agent Fields</h2>
+
+          <table>
+            <thead>
+              <tr><th>Field</th><th>Required</th><th>Description</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>name</code></td><td>yes</td><td>Agent name. Becomes Linux user <code>a-&lt;name&gt;</code>.</td></tr>
+              <tr><td><code>tier</code></td><td>yes</td><td><code>officer</code>, <code>operator</code>, or <code>worker</code>.</td></tr>
+              <tr><td><code>mode</code></td><td>yes</td><td><code>on-demand</code> (inbox-triggered) or <code>cron</code>.</td></tr>
+              <tr><td><code>instructions</code></td><td>yes</td><td>System prompt. Injected at task time.</td></tr>
+              <tr><td><code>roles</code></td><td>no</td><td>List of roles. Loads skills from role dirs.</td></tr>
+              <tr><td><code>cron</code></td><td>no</td><td>Cron expression. Required if <code>mode = "cron"</code>.</td></tr>
+              <tr><td><code>cli</code></td><td>no</td><td>Alternative runtime binary.</td></tr>
+              <tr><td><code>cli_args</code></td><td>no</td><td>Arguments for alternative runtime.</td></tr>
+            </tbody>
+          </table>
+
+          <h2 id="tiers">Tiers</h2>
+
+          <p>Tiers control privilege, not intelligence.</p>
+
+          <ul>
+            <li><strong>Officer</strong> — sets policy. Broad read access, no direct system writes.</li>
+            <li><strong>Operator</strong> — executes. Can task other agents, modify config within scope.</li>
+            <li><strong>Worker</strong> — single-purpose. Reads own workspace, writes own outbox. Nothing else.</li>
+          </ul>
+
+          <p>ACLs and sudoers enforce the boundaries. A compromised worker accomplishes
+          nothing beyond its intended capability.</p>
+
+          <!-- CLI Reference -->
+          <h2 id="cli-conos">conos (host-side)</h2>
+
+<pre><code class="language-bash">conos install                        # pull image, create env, start
+conos start                          # boot the instance
+conos stop [--force]                 # stop the instance
+conos status                         # agent status overview
+conos config apply                   # push config into running instance
+
+conos agent list                     # list agents
+conos agent &lt;message&gt;                # task the concierge
+conos agent task &lt;name&gt; &lt;message&gt;    # task a specific agent
+conos agent logs [-f] [-n N] [name]  # tail audit log
+conos agent kill &lt;name&gt;              # stop a running agent</code></pre>
+
+          <h2 id="cli-conctl">conctl (inside the container)</h2>
+
+          <p>You rarely need these directly. They are what <code>conos</code> calls over SSH.</p>
+
+<pre><code class="language-bash">conctl bootstrap                     # provision the conspiracy from config
+conctl run &lt;agent&gt;                   # execute one task cycle for an agent
+conctl status                        # agent status
+conctl logs [-f] [-n N] [agent]      # audit log
+conctl task [--agent &lt;name&gt;] &lt;msg&gt;   # drop a task into an inbox
+conctl kill &lt;agent&gt;                  # stop agent systemd units
+
+conctl healthcheck                   # evaluate all contracts
+conctl doctor                        # system verification report
+conctl brief                         # system state summary for agents
+conctl manifest show                 # dump expected system state as YAML
+conctl clear-sessions [agent]        # wipe PicoClaw session history
+
+conctl artifact create|show|link|verify
+conctl task-contract open|claim|update|show</code></pre>
+
+          <h2 id="cli-make">make targets (from the container repo)</h2>
+
+<pre><code class="language-bash">make image          # build the container image
+make deploy         # build + restart
+make run            # start the container
+make stop           # stop the container
+make status         # agent health and last activity
+make logs           # tail audit log
+make responses      # latest response from each agent
+make task MSG="..." # send a task to the concierge</code></pre>
+
+          <!-- Inspecting -->
+          <h2 id="inspect">Inspecting a Running System</h2>
+
+          <p>SSH into the container or use <code>docker exec</code>:</p>
+
+<pre><code class="language-bash">docker exec -it conos bash</code></pre>
+
+          <p>Useful things to look at:</p>
+
+<pre><code class="language-bash"># Config
+cat /etc/conos/conos.toml
+
+# Agent home directories
+ls /srv/conos/agents/
+
+# Inboxes (where tasks land)
+ls /srv/conos/agents/*/inbox/
+
+# Outboxes (where responses appear)
+ls /srv/conos/agents/*/outbox/
+
+# Audit log
+journalctl -u "conos-*" --no-pager -n 50
+
+# Contract results
+ls /srv/conos/contracts/results/
+
+# System state brief (what agents see)
+cat /srv/conos/context/system-state.md
+
+# Who owns what
+stat /srv/conos/agents/concierge/</code></pre>
+
+          <p>Every agent is a Linux user. Every inbox is a directory. Every
+          permission boundary is a file mode. There is no abstraction layer
+          to debug — just the OS.</p>
+
+        </div><!-- .docs-content -->
+      </div><!-- .docs-layout -->
+    </div><!-- .docs-wrap -->
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <span>ConspiracyOS</span>
+      <a href="https://github.com/ConspiracyOS">GitHub</a>
+    </div>
+  </footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script>hljs.highlightAll();</script>
+<script>
+  // Sidebar active link tracking
+  const sidebarLinks = document.querySelectorAll('.sidebar a');
+  const headings = document.querySelectorAll('.docs-content h2[id], .docs-content h3[id]');
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (!entry.isIntersecting) return;
+      const id = entry.target.id;
+      sidebarLinks.forEach(a => {
+        a.classList.toggle('active', a.getAttribute('href') === '#' + id);
+      });
+    });
+  }, { rootMargin: '-10% 0px -80% 0px' });
+
+  headings.forEach(h => observer.observe(h));
+</script>
+</body>
+</html>
