@@ -14,7 +14,7 @@
       <a href="/" class="site-title">conspiracyos</a>
       <ul class="nav-links">
         <li><a href="docs.html">Documentation</a></li>
-        <li><a href="https://github.com/ConspiracyOS">GitHub →</a></li>
+        <li><a href="https://github.com/ConspiracyOS">GitHub &rarr;</a></li>
       </ul>
     </div>
   </nav>
@@ -35,12 +35,45 @@
             </ul>
           </div>
           <div class="sidebar-group">
+            <span class="sidebar-group-label">Concepts</span>
+            <ul>
+              <li><a href="#how-tasks-flow">How Tasks Flow</a></li>
+              <li><a href="#tiers">Tiers</a></li>
+              <li><a href="#skills-and-roles">Skills &amp; Roles</a></li>
+            </ul>
+          </div>
+          <div class="sidebar-group">
             <span class="sidebar-group-label">Configuration</span>
             <ul>
               <li><a href="#config">Config File</a></li>
               <li><a href="#adding-agents">Adding Agents</a></li>
               <li><a href="#agent-fields">Agent Fields</a></li>
-              <li><a href="#tiers">Tiers</a></li>
+              <li><a href="#packages">Packages</a></li>
+            </ul>
+          </div>
+          <div class="sidebar-group">
+            <span class="sidebar-group-label">Contracts</span>
+            <ul>
+              <li><a href="#contracts-overview">Overview</a></li>
+              <li><a href="#writing-contracts">Writing Contracts</a></li>
+              <li><a href="#protocol-contracts">Protocol Contracts</a></li>
+              <li><a href="#builtin-contracts">Built-in Contracts</a></li>
+            </ul>
+          </div>
+          <div class="sidebar-group">
+            <span class="sidebar-group-label">Security</span>
+            <ul>
+              <li><a href="#security-model">Security Model</a></li>
+              <li><a href="#trust-boundaries">Trust Boundaries</a></li>
+              <li><a href="#immutable-files">Immutable Files</a></li>
+            </ul>
+          </div>
+          <div class="sidebar-group">
+            <span class="sidebar-group-label">Drivers</span>
+            <ul>
+              <li><a href="#drivers-overview">Overview</a></li>
+              <li><a href="#driver-discord">Discord</a></li>
+              <li><a href="#driver-openclaw">OpenClaw</a></li>
             </ul>
           </div>
           <div class="sidebar-group">
@@ -50,6 +83,7 @@
               <li><a href="#cli-conctl">conctl CLI</a></li>
               <li><a href="#cli-make">make targets</a></li>
               <li><a href="#inspect">Inspecting</a></li>
+              <li><a href="#troubleshooting">Troubleshooting</a></li>
             </ul>
           </div>
         </aside>
@@ -60,7 +94,8 @@
           <h1>Documentation</h1>
           <p class="tagline">From zero to running conspiracy in about five minutes.</p>
 
-          <!-- Getting Started -->
+          <!-- ═══════════ GETTING STARTED ═══════════ -->
+
           <h2 id="prerequisites">Prerequisites</h2>
 
           <ul>
@@ -78,8 +113,6 @@
 
 <pre><code class="language-bash">git clone https://github.com/ConspiracyOS/conos.git
 cd conos && go build -o conos ./cmd/conos/</code></pre>
-
-          <p>Install and boot a conspiracy:</p>
 
           <p><code>CONOS_API_KEY</code> is the env var that holds your LLM provider's
           API key (Anthropic, OpenRouter, etc.). The name is configurable via
@@ -136,7 +169,100 @@ make responses          # check agent outboxes</code></pre>
 
 <pre><code class="language-bash">conos agent task sysadmin "Run the contracts"</code></pre>
 
-          <!-- Configuration -->
+          <!-- ═══════════ CONCEPTS ═══════════ -->
+
+          <h2 id="how-tasks-flow">How Tasks Flow</h2>
+
+          <p>A conspiracy has one entry point: the <strong>outer inbox</strong>
+          (<code>/srv/conos/inbox/</code>). When you run <code>conos agent "do something"</code>,
+          the CLI writes a <code>.task</code> file into that directory. A systemd
+          path unit detects the new file and wakes the concierge.</p>
+
+          <p>The concierge reads the task, decides which agent should handle it,
+          and moves the file to that agent's inbox
+          (<code>/srv/conos/agents/&lt;name&gt;/inbox/</code>). Another systemd path
+          unit detects it and starts the agent's service. The agent reads the task,
+          does the work, and writes a response to its outbox.</p>
+
+          <p>There is no message bus, no RPC layer, no internal API. Agents
+          communicate by writing files. Routing is file-move.
+          Activation is systemd. The entire coordination layer is
+          filesystem + init system.</p>
+
+          <h2 id="tiers">Tiers</h2>
+
+          <p>Tiers control privilege, not intelligence. Every agent runs the same
+          kind of LLM — tiers determine what the OS allows it to do.</p>
+
+          <table>
+            <thead>
+              <tr><th>Tier</th><th>Can Task</th><th>Hardening</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Officer</strong></td>
+                <td>Any agent</td>
+                <td>NoNewPrivileges, ProtectSystem=strict</td>
+              </tr>
+              <tr>
+                <td><strong>Operator</strong></td>
+                <td>Any agent</td>
+                <td>NoNewPrivileges, ProtectSystem=strict, ReadWritePaths scoped</td>
+              </tr>
+              <tr>
+                <td><strong>Worker</strong></td>
+                <td>Nobody</td>
+                <td>All of the above + BindReadOnlyPaths, PrivateTmp, ProtectHome=tmpfs</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <p>Officers set policy (the strategist reviews system state daily and
+          writes standing orders). Operators execute (the concierge routes tasks,
+          the sysadmin commissions agents). Workers do a single job and
+          write a response. They cannot task other agents — the kernel blocks
+          writes to other inboxes via POSIX ACLs.</p>
+
+          <h2 id="skills-and-roles">Skills &amp; Roles</h2>
+
+          <p>An agent's behavior is defined by two things: <strong>instructions</strong>
+          and <strong>skills</strong>.</p>
+
+          <p><strong>Instructions</strong> (<code>AGENTS.md</code>) define identity,
+          constraints, and decision-making rules. They tell the agent <em>what</em>
+          it is and <em>what to consider</em> when working.</p>
+
+          <p><strong>Skills</strong> are step-by-step procedures for specific tasks.
+          They live in <code>/etc/conos/roles/&lt;role&gt;/skills/*.md</code> and are
+          injected into the agent's prompt at task time. Skills tell the agent
+          <em>how</em> to do things — exact commands, verification steps, and
+          checklists.</p>
+
+<pre><code class="language-text">/etc/conos/
+  roles/
+    sysadmin/
+      skills/
+        commission-agent.md    # 11-step procedure for creating an agent
+        evaluate-request.md    # decision tree for evaluating requests
+        writing-contracts.md   # how to write detective contracts
+        heartbeat-audit.md     # interpret healthcheck results
+  agents/
+    concierge/
+      AGENTS.md                # concierge identity and routing rules
+    sysadmin/
+      AGENTS.md                # sysadmin identity and constraints</code></pre>
+
+          <p>Agents reference roles in the config (<code>roles = ["sysadmin"]</code>).
+          At task time, skills from those roles are copied to the agent's workspace
+          and injected into the prompt. The agent is told: "If a skill exists for
+          what you are doing, use it. Do not improvise."</p>
+
+          <p>Skills and agent instructions are owned by root and set immutable
+          (<code>chattr +i</code>). An agent cannot modify its own instructions or
+          skill files — the kernel prevents it.</p>
+
+          <!-- ═══════════ CONFIGURATION ═══════════ -->
+
           <h2 id="config">Configuration</h2>
 
           <p>Everything lives in <code>conos.toml</code>. The default config ships with
@@ -175,6 +301,7 @@ model = "claude-sonnet-4-6"</code></pre>
 name = "researcher"
 tier = "worker"
 mode = "on-demand"
+packages = ["curl", "jq"]
 instructions = """
 You are the Researcher. You gather information from
 approved sources and summarize findings.
@@ -185,9 +312,10 @@ approved sources and summarize findings.
 <pre><code class="language-bash">conos config apply    # if using conos
 make deploy           # if building from source</code></pre>
 
-          <p>Bootstrap runs on container start. It creates the Linux user, home
-          directory, inbox, systemd units, and ACLs. The agent exists because
-          Linux says it does.</p>
+          <p>Bootstrap creates the Linux user (<code>a-researcher</code>), home directory,
+          inbox, outbox, workspace, systemd units, and ACLs. It installs any
+          declared packages and deploys skills from the agent's roles. The agent
+          exists because Linux says it does.</p>
 
           <h2 id="agent-fields">Agent Fields</h2>
 
@@ -198,30 +326,288 @@ make deploy           # if building from source</code></pre>
             <tbody>
               <tr><td><code>name</code></td><td>yes</td><td>Agent name. Becomes Linux user <code>a-&lt;name&gt;</code>.</td></tr>
               <tr><td><code>tier</code></td><td>yes</td><td><code>officer</code>, <code>operator</code>, or <code>worker</code>.</td></tr>
-              <tr><td><code>mode</code></td><td>yes</td><td><code>on-demand</code> (inbox-triggered) or <code>cron</code>.</td></tr>
+              <tr><td><code>mode</code></td><td>yes</td><td><code>on-demand</code> (inbox-triggered), <code>cron</code>, or <code>continuous</code>.</td></tr>
               <tr><td><code>instructions</code></td><td>yes</td><td>System prompt. Injected at task time.</td></tr>
-              <tr><td><code>roles</code></td><td>no</td><td>List of roles. Loads skills from role dirs.</td></tr>
+              <tr><td><code>roles</code></td><td>no</td><td>List of roles. Loads skills from <code>/etc/conos/roles/&lt;role&gt;/skills/</code>.</td></tr>
+              <tr><td><code>packages</code></td><td>no</td><td>Apt packages installed on bootstrap. Also installable at runtime.</td></tr>
               <tr><td><code>cron</code></td><td>no</td><td>Cron expression. Required if <code>mode = "cron"</code>.</td></tr>
-              <tr><td><code>cli</code></td><td>no</td><td>Alternative runtime binary.</td></tr>
-              <tr><td><code>cli_args</code></td><td>no</td><td>Arguments for alternative runtime.</td></tr>
-              <tr><td><code>packages</code></td><td>no</td><td>Apt packages to install for this agent.</td></tr>
+              <tr><td><code>runner</code></td><td>no</td><td>Override runtime binary (default: inherited from <code>[base]</code>).</td></tr>
+              <tr><td><code>runner_args</code></td><td>no</td><td>Arguments for the runtime binary.</td></tr>
             </tbody>
           </table>
 
-          <h2 id="tiers">Tiers</h2>
+          <h2 id="packages">Packages</h2>
 
-          <p>Tiers control privilege, not intelligence.</p>
+          <p>Agents sometimes need tools — <code>psql</code> for database queries,
+          <code>curl</code> for HTTP, <code>jq</code> for JSON processing. Packages
+          declared in the config are installed at bootstrap:</p>
+
+<pre><code class="language-toml">[[agents]]
+name = "data-analyst"
+packages = ["postgresql-client", "jq"]</code></pre>
+
+          <p>For runtime installation without restarting:</p>
+
+<pre><code class="language-bash"># Install now (ephemeral — lost on container restart)
+conctl package install postgresql-client --agent data-analyst
+
+# Install and persist to conos.toml
+conctl package install postgresql-client --agent data-analyst --save</code></pre>
+
+          <p>The <code>--save</code> flag writes the package to the config so it
+          survives restarts. Without it, the install is immediate but ephemeral.</p>
+
+          <p>Package installation goes through <code>conctl package</code>, not raw
+          <code>apt-get</code>. This validates the package name, logs the action to
+          the audit trail, and keeps <code>apt-get</code> out of agent sudoers.</p>
+
+          <!-- ═══════════ CONTRACTS ═══════════ -->
+
+          <h2 id="contracts-overview">Contracts</h2>
+
+          <p>Contracts are YAML-defined checks that assert the system matches its
+          intended state. They run on systemd timers (typically every 60 seconds)
+          and report pass, fail, or warn for each check.</p>
+
+          <p>Prevention is the OS's job — <code>chmod</code>, <code>nftables</code>,
+          <code>sudoers</code> enforce boundaries at the kernel level. Detection is
+          the contract's job — contracts verify that those preventive controls
+          stayed in place. If an ACL was loosened, a file permission changed, or
+          a service stopped, the contract catches it.</p>
+
+          <p>There are three contract types:</p>
 
           <ul>
-            <li><strong>Officer</strong> — sets policy. Broad read access, no direct system writes.</li>
-            <li><strong>Operator</strong> — executes. Can task other agents, modify config within scope.</li>
-            <li><strong>Worker</strong> — single-purpose. Reads own workspace, writes own outbox. Nothing else.</li>
+            <li><strong>Detective</strong> — runs on a timer, detects drift. Most contracts are this type.</li>
+            <li><strong>Atomic</strong> — single-state assertion. Semantically identical to detective.</li>
+            <li><strong>Protocol</strong> — runs before a destructive action, enforces preconditions. See <a href="#protocol-contracts">below</a>.</li>
           </ul>
 
-          <p>ACLs and sudoers enforce the boundaries. A compromised worker accomplishes
-          nothing beyond its intended capability.</p>
+          <p>The <a href="https://github.com/ConspiracyOS/contracts"><code>contracts</code></a>
+          framework is standalone. It runs on any Linux system — no dependency on
+          the rest of ConspiracyOS.</p>
 
-          <!-- CLI Reference -->
+          <h2 id="writing-contracts">Writing Contracts</h2>
+
+          <p>A contract is a YAML file in <code>/srv/conos/contracts/</code>:</p>
+
+<pre><code class="language-yaml">id: CON-SEC-001
+description: Skill files must be owned by root
+type: detective
+tags: [schedule]
+scope: global
+checks:
+  - name: skills_root_owned
+    script:
+      inline: |
+        found=$(find /etc/conos/roles -name '*.md' ! -user root)
+        [ -z "$found" ]
+    on_fail: escalate
+    severity: critical
+    category: security
+    what: "Skill files not owned by root"
+    verify: "find /etc/conos/roles -name '*.md' ! -user root"
+    affects: ["/etc/conos/roles"]</code></pre>
+
+          <p>Key fields:</p>
+
+          <table>
+            <thead>
+              <tr><th>Field</th><th>Purpose</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>id</code></td><td>Unique ID. Convention: <code>CON-{SEC|SYS|AGENT}-NNN</code></td></tr>
+              <tr><td><code>type</code></td><td><code>detective</code>, <code>atomic</code>, or <code>protocol</code></td></tr>
+              <tr><td><code>tags</code></td><td><code>[schedule]</code> to run on the healthcheck timer</td></tr>
+              <tr><td><code>on_fail</code></td><td>Action on failure: <code>alert</code>, <code>escalate</code>, <code>halt_agents</code>, <code>halt</code></td></tr>
+              <tr><td><code>severity</code></td><td><code>critical</code>, <code>high</code>, <code>medium</code>, <code>low</code></td></tr>
+              <tr><td><code>what</code></td><td>Human-readable finding (shown in reports)</td></tr>
+              <tr><td><code>verify</code></td><td>Command to manually verify the issue</td></tr>
+              <tr><td><code>affects</code></td><td>Paths or resources affected</td></tr>
+            </tbody>
+          </table>
+
+          <p>Check types: <code>command</code> (single command + exit code),
+          <code>script</code> (inline or file), <code>regex_in_file</code>,
+          <code>path_exists</code>, <code>yaml_key</code>/<code>json_key</code>/<code>toml_key</code>,
+          <code>env_var</code>, <code>command_available</code>. A check passes when
+          exit code is 0 or the assertion holds.</p>
+
+          <h2 id="protocol-contracts">Protocol Contracts</h2>
+
+          <p>Protocol contracts are precondition gates. They don't run on a timer —
+          they run explicitly before a destructive action.</p>
+
+<pre><code class="language-yaml">id: CON-PROTO-001
+description: Preconditions before disabling Tailscale
+type: protocol
+trigger: "tailscale down"
+checks:
+  - name: lan_ssh_reachable
+    command:
+      run: "ssh -o ConnectTimeout=5 -o BatchMode=yes nas 'echo ok'"
+      exit_code: 0
+    on_fail: halt
+    severity: critical
+    what: "LAN SSH unreachable — disabling Tailscale would lock out the host"</code></pre>
+
+          <p>Run a protocol check before acting:</p>
+
+<pre><code class="language-bash"># Check preconditions (exit 0 = clear, exit 1 = blocked)
+conctl protocol check CON-PROTO-001
+
+# Override a specific check with a reason
+conctl protocol check CON-PROTO-001 --exempt lan_ssh_reachable \
+  --reason "Physical console access confirmed"</code></pre>
+
+          <p>Exemptions are logged to the audit trail. Detective contracts can
+          later verify whether the exemption was justified.</p>
+
+          <h2 id="builtin-contracts">Built-in Contracts</h2>
+
+          <p>The default config ships with 15 contracts across three categories:</p>
+
+          <table>
+            <thead>
+              <tr><th>ID</th><th>What it checks</th><th>On failure</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>CON-AGENT-001</code></td><td>Agent directories have correct permissions/ownership</td><td>alert</td></tr>
+              <tr><td><code>CON-AGENT-002</code></td><td>Agent instructions (AGENTS.md) are root-owned, read-only</td><td>alert</td></tr>
+              <tr><td><code>CON-SEC-001</code></td><td>Skill files owned by root</td><td>escalate</td></tr>
+              <tr><td><code>CON-SEC-002</code></td><td>Agent git repos have no unauthorized remotes</td><td>alert</td></tr>
+              <tr><td><code>CON-SEC-003</code></td><td>Exposed artifacts have valid manifests</td><td>alert</td></tr>
+              <tr><td><code>CON-SEC-004</code></td><td>Artifacts don't contain secrets</td><td>escalate</td></tr>
+              <tr><td><code>CON-SEC-005</code></td><td>Critical files have immutable bit set</td><td>escalate</td></tr>
+              <tr><td><code>CON-SYS-001</code></td><td>Disk free &ge; 15%</td><td>halt_agents</td></tr>
+              <tr><td><code>CON-SYS-002</code></td><td>Memory available &ge; 10%</td><td>halt_agents</td></tr>
+              <tr><td><code>CON-SYS-003</code></td><td>Load average &le; 2x CPU cores</td><td>halt_agents</td></tr>
+              <tr><td><code>CON-SYS-004</code></td><td>No agent session exceeds 30 minutes</td><td>alert</td></tr>
+              <tr><td><code>CON-SYS-005</code></td><td>Audit log directory is writable</td><td>halt_agents</td></tr>
+              <tr><td><code>CON-SYS-006</code></td><td><code>/etc/conos/env</code> is mode 600 root:root</td><td>alert</td></tr>
+              <tr><td><code>CON-SYS-007</code></td><td>auditd service is active</td><td>alert</td></tr>
+              <tr><td><code>CON-SYS-008</code></td><td>System state snapshot + change diff</td><td>alert</td></tr>
+            </tbody>
+          </table>
+
+          <!-- ═══════════ SECURITY ═══════════ -->
+
+          <h2 id="security-model">Security Model</h2>
+
+          <p>Three layers, each independent:</p>
+
+          <ol>
+            <li><strong>Prevention</strong> — the OS enforces boundaries.
+            File permissions (<code>chmod 700</code>), POSIX ACLs on inboxes,
+            <code>nftables</code> per-uid firewall rules, and <code>sudoers</code>
+            allowlists. A compromised agent cannot bypass these because they are
+            enforced by the kernel, not the application.</li>
+
+            <li><strong>Immediate detection</strong> — <code>auditd</code> watches on
+            critical directories generate events the instant a write is attempted.
+            Combined with immutable files, the write fails but is always logged.</li>
+
+            <li><strong>Periodic verification</strong> — detective contracts run
+            every 60 seconds. They verify that preventive controls stayed in place
+            and that system state matches intent. This is the safety net that
+            catches anything the first two layers missed.</li>
+          </ol>
+
+          <p>The design assumption is that every agent will eventually process
+          adversarial input. A fully compromised agent should accomplish nothing
+          beyond its intended capability.</p>
+
+          <h2 id="trust-boundaries">Trust Boundaries</h2>
+
+          <p>Trust is determined by provenance (file ownership), not content:</p>
+
+          <ul>
+            <li><strong>User input</strong> (outer inbox) — trusted. The user has
+            machine access.</li>
+            <li><strong>Agent-routed tasks</strong> — semi-trusted. The routing
+            agent may have been influenced by external content. Agents see
+            <code>[trust:verified]</code> or <code>[trust:unverified]</code> in the
+            task header.</li>
+            <li><strong>External data</strong> (email, URLs, APIs) — untrusted.
+            Agents are instructed not to take consequential actions based on
+            unverified input.</li>
+          </ul>
+
+          <p>Provenance is checked via <code>lstat()</code> on the task file. Files
+          owned by root or a member of the <code>trusted</code> group are verified.
+          Agent-owned files are unverified. Symlinks are always treated as
+          unverified regardless of target ownership.</p>
+
+          <h2 id="immutable-files">Immutable Files</h2>
+
+          <p>Critical configuration files are set immutable with <code>chattr +i</code>
+          during bootstrap. Even root cannot modify them without first removing the
+          immutable flag — which requires <code>CAP_LINUX_IMMUTABLE</code>. No agent
+          has this capability.</p>
+
+          <p>Immutable files:</p>
+
+          <ul>
+            <li><code>/etc/conos/conos.toml</code> — config</li>
+            <li><code>/etc/conos/env</code> — API keys</li>
+            <li><code>/etc/conos/roles/*/skills/*.md</code> — skill files</li>
+            <li><code>/etc/conos/agents/*/AGENTS.md</code> — agent instructions</li>
+            <li><code>/etc/conos/contracts/*.yaml</code> — contract definitions</li>
+            <li><code>/etc/sudoers.d/conos-*</code> — sudoers rules</li>
+            <li><code>/etc/systemd/system/conos-*</code> — systemd units</li>
+            <li><code>/usr/local/bin/conctl</code> — the binary itself</li>
+          </ul>
+
+          <p>Legitimate changes go through <code>conctl</code> (e.g.,
+          <code>conctl config apply</code>, <code>conctl bootstrap</code>), which
+          temporarily removes the immutable bit, makes the change, and re-applies it.
+          The sysadmin agent has no sudoers entry for <code>chattr</code> — it can
+          only go through the controlled <code>conctl</code> path.</p>
+
+          <!-- ═══════════ DRIVERS ═══════════ -->
+
+          <h2 id="drivers-overview">Drivers</h2>
+
+          <p>A driver connects an external interface to the conspiracy. It receives
+          messages from a platform, forwards them as tasks via SSH, polls for
+          responses, and pushes them back. Drivers are standalone Go binaries that
+          run on any host with SSH access to the container.</p>
+
+          <h2 id="driver-discord">Discord</h2>
+
+          <p>Receives Discord messages, forwards to the concierge, posts responses
+          back to the channel or DM.</p>
+
+<pre><code class="language-bash">cd conos/drivers/discord
+export DISCORD_BOT_TOKEN="..."
+export DISCORD_CHANNEL_ID="..."       # omit for DM mode
+export CONOS_SSH_HOST="your-instance"
+go build . && ./discord</code></pre>
+
+          <p>Supports slash commands: <code>/status</code>, <code>/logs</code>,
+          <code>/responses</code>, <code>/clear</code> (reset session history).
+          Artifact links are resolved to signed URLs. Secrets are redacted from
+          responses before posting.</p>
+
+          <h2 id="driver-openclaw">OpenClaw</h2>
+
+          <p>Receives webhooks from the
+          <a href="https://github.com/nanoclaw/openclaw">OpenClaw Gateway</a>,
+          which bridges WhatsApp, Telegram, Slack, and other messaging platforms.</p>
+
+<pre><code class="language-bash">cd conos/drivers/openclaw
+export OPENCLAW_HOOK_TOKEN="your-secret"
+export OPENCLAW_GATEWAY_URL="http://your-gateway:18789"
+export CONOS_SSH_HOST="your-instance"
+go build . && ./openclaw</code></pre>
+
+          <p>Configure the Gateway to POST to
+          <code>http://&lt;driver-host&gt;:3847/webhook?token=&lt;OPENCLAW_HOOK_TOKEN&gt;</code>.
+          Messages flow: user's app &rarr; Gateway &rarr; webhook &rarr; SSH task &rarr;
+          concierge &rarr; agent &rarr; response poll &rarr; Gateway API &rarr; user's app.</p>
+
+          <!-- ═══════════ REFERENCE ═══════════ -->
+
           <h2 id="cli-conos">conos (host-side)</h2>
 
 <pre><code class="language-bash">conos install                        # pull image, create env, start
@@ -240,26 +626,31 @@ conos agent kill &lt;name&gt;              # stop a running agent</code></pre>
 
           <p>You rarely need these directly. They are what <code>conos</code> calls over SSH.</p>
 
-<pre><code class="language-bash">conctl bootstrap                     # provision the conspiracy from config
+<pre><code class="language-bash"># Operations
+conctl bootstrap                     # provision the conspiracy from config
 conctl run &lt;agent&gt;                   # execute one task cycle for an agent
 conctl status                        # agent status
 conctl logs [-f] [-n N] [agent]      # audit log
 conctl task [--agent &lt;name&gt;] &lt;msg&gt;   # drop a task into an inbox
 conctl kill &lt;agent&gt;                  # stop agent systemd units
+conctl clear-sessions [agent]        # wipe PicoClaw session history
 
+# Contracts
 conctl healthcheck                   # evaluate all contracts
 conctl doctor                        # system verification report
 conctl brief                         # system state summary for agents
 conctl manifest show                 # dump expected system state as YAML
-conctl clear-sessions [agent]        # wipe PicoClaw session history
 
+# Protocol contracts
 conctl protocol check &lt;id&gt; [--exempt &lt;check&gt; --reason &lt;reason&gt;]
 conctl protocol list                 # list protocol contracts
 
+# Package management
 conctl package install &lt;pkg&gt; --agent &lt;name&gt; [--save]
 conctl package remove &lt;pkg&gt; --agent &lt;name&gt; [--save]
 conctl package list [--agent &lt;name&gt;]
 
+# Artifacts
 conctl artifact create|show|link|verify
 conctl task-contract open|claim|update|show</code></pre>
 
@@ -295,21 +686,76 @@ ls /srv/conos/agents/*/inbox/
 # Outboxes (where responses appear)
 ls /srv/conos/agents/*/outbox/
 
+# Who can write to an inbox
+getfacl /srv/conos/agents/sysadmin/inbox/
+
 # Audit log
 journalctl -u "conos-*" --no-pager -n 50
 
 # Contract results
-ls /srv/conos/contracts/results/
+conctl doctor
 
 # System state brief (what agents see)
 cat /srv/conos/context/system-state.md
 
 # Who owns what
-stat /srv/conos/agents/concierge/</code></pre>
+stat /srv/conos/agents/concierge/
+
+# Check immutable flags
+lsattr /etc/conos/conos.toml /usr/local/bin/conctl</code></pre>
 
           <p>Every agent is a Linux user. Every inbox is a directory. Every
           permission boundary is a file mode. There is no abstraction layer
           to debug — just the OS.</p>
+
+          <h2 id="troubleshooting">Troubleshooting</h2>
+
+          <h3>Agent not responding to tasks</h3>
+
+<pre><code class="language-bash"># Is the inbox watcher running?
+systemctl status conos-concierge.path
+
+# Is the service failing?
+journalctl -u conos-concierge.service -n 20
+
+# Is there a task stuck in the inbox?
+ls -la /srv/conos/agents/concierge/inbox/
+
+# Is the agent's session oversized? Clear it.
+conctl clear-sessions concierge</code></pre>
+
+          <h3>Contract keeps failing</h3>
+
+<pre><code class="language-bash"># See the full report
+conctl doctor
+
+# Run the check manually using the verify command from the contract
+find /etc/conos/roles -name '*.md' ! -user root
+
+# Check if immutable bit was stripped
+lsattr /etc/conos/conos.toml</code></pre>
+
+          <h3>Bootstrap fails</h3>
+
+<pre><code class="language-bash"># Check the bootstrap log
+journalctl -u conos-bootstrap.service --no-pager
+
+# Re-run bootstrap manually
+conctl bootstrap
+
+# Verify expected state vs actual state
+conctl doctor</code></pre>
+
+          <h3>"Permission denied" errors</h3>
+
+<pre><code class="language-bash"># Check who owns the file
+stat /path/to/file
+
+# Check ACLs
+getfacl /path/to/directory
+
+# Check what the agent's sudoers allows
+cat /etc/sudoers.d/conos-sysadmin</code></pre>
 
         </div><!-- .docs-content -->
       </div><!-- .docs-layout -->
