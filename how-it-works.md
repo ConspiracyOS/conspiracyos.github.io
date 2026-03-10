@@ -18,7 +18,7 @@ Not all agents are equal. A conspiracy organizes agents into three tiers, each w
 | Operator | concierge, sysadmin | Routes tasks, executes operations |
 | Worker | (ephemeral) | Runs a specific job, spawned on demand |
 
-Tier determines what an agent can do. Officers can task anyone. Operators can task workers but not officers. Workers cannot task anyone — they receive work, do it, and write a response. These boundaries are not conventions. They are ACL rules on inbox directories, enforced by the kernel.
+Tier determines what an agent can do. Officers and operators can task any agent. Workers cannot task anyone — they receive work, do it, and write a response. The difference between tiers is not communication scope but hardening: workers get the strictest systemd sandboxing, operators get operational access, officers set policy. These boundaries are not conventions. They are ACL rules on inbox directories, enforced by the kernel.
 
 ## The Coordination Layer
 

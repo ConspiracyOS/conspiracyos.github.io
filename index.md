@@ -15,7 +15,7 @@ A fleet of agents coordinated this way is called a conspiracy. Agents are organi
 
 ## Contracts
 
-A system that assumes breach needs continuous verification. ConspiracyOS uses detective contracts: YAML-defined checks that run on systemd timers, asserting that reality matches intent. An ACL was tightened? A contract verifies it stayed tightened. A sudoers rule was narrowed? A contract checks it every five minutes. Drift is detected, not prevented — because prevention at the application layer is exactly the kind of promise that breaks under compromise.
+Prevention is the OS's job. `chmod`, `nftables`, `sudoers` — these enforce boundaries at the kernel level, where a compromised agent cannot bypass them. Detection is the contract's job. Contracts are YAML-defined checks that run on systemd timers, asserting that the preventive controls stayed in place. An ACL was tightened? A contract verifies it stayed tightened. A sudoers rule was narrowed? A contract checks it every five minutes.
 
 The [`contracts`](https://github.com/ConspiracyOS/contracts) framework is a standalone tool. It works outside ConspiracyOS, on any Linux system where you want YAML-defined checks running on a schedule. No dependency on the rest of the project.
 

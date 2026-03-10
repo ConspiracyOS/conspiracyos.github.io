@@ -24,7 +24,7 @@ git clone https://github.com/ConspiracyOS/conos.git
 cd conos && go build -o conos ./cmd/conos/
 ```
 
-Install and boot a conspiracy:
+`CONOS_API_KEY` is the env var that holds your LLM provider's API key (Anthropic, OpenRouter, etc.). The name is configurable via `api_key_env` in the config.
 
 ```bash
 CONOS_API_KEY=sk-your-key-here ./conos install
@@ -108,7 +108,7 @@ brief_output = "/srv/conos/context/system-state.md"
 [base]
 runner = "picoclaw"
 provider = "anthropic"
-api_key_env = "CONOS_API_KEY"
+api_key_env = "CONOS_API_KEY"     # env var holding your LLM provider key
 
 [base.officer]
 model = "claude-sonnet-4-6"
