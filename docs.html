@@ -204,6 +204,7 @@ make deploy           # if building from source</code></pre>
               <tr><td><code>cron</code></td><td>no</td><td>Cron expression. Required if <code>mode = "cron"</code>.</td></tr>
               <tr><td><code>cli</code></td><td>no</td><td>Alternative runtime binary.</td></tr>
               <tr><td><code>cli_args</code></td><td>no</td><td>Arguments for alternative runtime.</td></tr>
+              <tr><td><code>packages</code></td><td>no</td><td>Apt packages to install for this agent.</td></tr>
             </tbody>
           </table>
 
@@ -251,6 +252,13 @@ conctl doctor                        # system verification report
 conctl brief                         # system state summary for agents
 conctl manifest show                 # dump expected system state as YAML
 conctl clear-sessions [agent]        # wipe PicoClaw session history
+
+conctl protocol check &lt;id&gt; [--exempt &lt;check&gt; --reason &lt;reason&gt;]
+conctl protocol list                 # list protocol contracts
+
+conctl package install &lt;pkg&gt; --agent &lt;name&gt; [--save]
+conctl package remove &lt;pkg&gt; --agent &lt;name&gt; [--save]
+conctl package list [--agent &lt;name&gt;]
 
 conctl artifact create|show|link|verify
 conctl task-contract open|claim|update|show</code></pre>

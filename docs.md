@@ -159,6 +159,7 @@ Linux says it does.
 | `cron`         | no       | Cron expression. Required if `mode = "cron"`.  |
 | `cli`          | no       | Alternative runtime binary.                    |
 | `cli_args`     | no       | Arguments for alternative runtime.             |
+| `packages`     | no       | Apt packages to install for this agent.        |
 
 ### Tiers
 
@@ -206,6 +207,13 @@ conctl doctor                        # system verification report
 conctl brief                         # system state summary for agents
 conctl manifest show                 # dump expected system state as YAML
 conctl clear-sessions [agent]        # wipe PicoClaw session history
+
+conctl protocol check <id> [--exempt <check> --reason <reason>]
+conctl protocol list                 # list protocol contracts
+
+conctl package install <pkg> --agent <name> [--save]
+conctl package remove <pkg> --agent <name> [--save]
+conctl package list [--agent <name>]
 
 conctl artifact create|show|link|verify
 conctl task-contract open|claim|update|show
