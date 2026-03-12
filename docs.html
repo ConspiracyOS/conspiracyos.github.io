@@ -11,7 +11,7 @@
 <body class="docs-page">
   <nav>
     <div class="wrap">
-      <a href="/" class="site-title">conspiracyos</a>
+      <a href="/" class="site-title">ConspiracyOS</a>
       <ul class="nav-links">
         <li><a href="docs.html">Documentation</a></li>
         <li><a href="https://github.com/ConspiracyOS">GitHub &rarr;</a></li>
@@ -787,6 +787,14 @@ cat /etc/sudoers.d/conos-sysadmin</code></pre>
   }, { rootMargin: '-10% 0px -80% 0px' });
 
   headings.forEach(h => observer.observe(h));
+
+  // Highlight sidebar link immediately on click
+  sidebarLinks.forEach(link => {
+    link.addEventListener('click', () => {
+      sidebarLinks.forEach(a => a.classList.remove('active'));
+      link.classList.add('active');
+    });
+  });
 </script>
 </body>
 </html>
